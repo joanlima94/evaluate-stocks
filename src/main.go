@@ -42,6 +42,32 @@ func extractStockData(node *html.Node, stocks map[string]string) {
 
 }
 
+func fetchEarnings(urlCode string, proventosLinks map[string]string) {
+	node, err := fetchUrl(urlCode)
+	if err != nil {
+		fmt.Printf("Error fetching proventos data for URL %s: %v\n", urlCode, err)
+		return
+	}
+
+	var f func(*html.Node)
+
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, attr := range n.Attr {
+				if attr.Key == "href" && strings.Contains(attr.Val, "proventos.php?papel=") {
+					codeProventos := strings.Split(attr.Val, "=")[1]
+					fullURL := "https://www.fundamentus.com.br/" + attr.Val
+					proventosLinks[codeProventos] = fullURL
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(node)
+}
+
 func main() {
 
 	node, err := fetchUrl(constants.UrlFundamentus)
@@ -52,8 +78,16 @@ func main() {
 	stocks := make(map[string]string)
 	extractStockData(node, stocks)
 
-	for code, url := range stocks {
-		fmt.Printf("Code: %s, Link: %s\n", code, url)
+	proventosLinks := make(map[string]string)
+
+	for code, link := range stocks {
+		fmt.Printf("Code: %s, Link: %s\n", code, link)
+		fetchEarnings(link, proventosLinks)
+	}
+
+	fmt.Println("Proventos Links:")
+	for _, link := range proventosLinks {
+		fmt.Println(link)
 	}
 
 }
